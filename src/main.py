@@ -16,24 +16,29 @@ load_dotenv()
 mcp = FastMCP("T1D Manager")
 
 # Initialize Services
-ns_url = os.getenv("NIGHTSCOUT_URL")
-ns_secret = os.getenv("NIGHTSCOUT_SECRET")
-nightscout = NightscoutClient(ns_url, ns_secret) if ns_url else None
-
+# nightscout client will be initialized per request for multi-tenancy
 food_db = FoodDatabase()
 search_client = HybridSearchClient()
 
 @mcp.tool()
-def get_recent_cgm(count: int = 1) -> str:
+def get_recent_cgm(nightscout_url: str, api_secret: str = None, count: int = 1) -> str:
     """
     Get recent CGM (Continuous Glucose Monitor) readings from Nightscout.
-    Returns current glucose, direction, and trends.
+    Important: You must ask the user for their Nightscout URL first.
+    
+    Args:
+        nightscout_url: The user's Nightscout server URL (e.g., https://my-cgm.herokuapp.com)
+        api_secret: (Optional) API Secret if the site is authenticated.
+        count: Number of recent readings to fetch (default 1).
     """
-    if not nightscout:
-        return "Error: Nightscout URL is not configured."
+    if not nightscout_url:
+        return "Error: Nightscout URL is required."
     
     try:
-        entries = nightscout.get_sgv(count)
+        # Initialize client per request (Stateless)
+        client = NightscoutClient(nightscout_url, api_secret)
+        entries = client.get_sgv(count)
+        
         if not entries:
             return "No recent data found."
         
