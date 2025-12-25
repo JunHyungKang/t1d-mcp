@@ -4,56 +4,50 @@ from dotenv import load_dotenv
 from typing import Dict, Any, List
 
 # Import local modules
-from nightscout import NightscoutClient
-from nutrition import FoodDatabase
-from search import HybridSearchClient
-from utils.calculator import calculate_bolus
-
-# Load environment variables
-load_dotenv()
-
-# Initialize MCP Server
-mcp = FastMCP("T1D Manager")
-
-# Initialize Services
-# nightscout client will be initialized per request for multi-tenancy
-food_db = FoodDatabase()
-search_client = HybridSearchClient()
+from dexcom_client import DexcomClient
+# ... imports ...
 
 @mcp.tool()
-def get_recent_cgm(nightscout_url: str, api_secret: str = None, count: int = 1) -> str:
+def get_recent_cgm(dexcom_username: str, dexcom_password: str, region: str = "OUS") -> str:
     """
-    Get recent CGM (Continuous Glucose Monitor) readings from Nightscout.
-    Important: You must ask the user for their Nightscout URL first.
+    Get real-time CGM readings directly from Dexcom Share.
+    This requires the user's Dexcom account credentials.
     
     Args:
-        nightscout_url: The user's Nightscout server URL (e.g., https://my-cgm.herokuapp.com)
-        api_secret: (Optional) API Secret if the site is authenticated.
-        count: Number of recent readings to fetch (default 1).
+        dexcom_username: Dexcom account ID (email or username)
+        dexcom_password: Dexcom account password
+        region: Account region ('OUS' for Korea/International, 'US' for USA). Default is 'OUS'.
     """
-    if not nightscout_url:
-        return "Error: Nightscout URL is required."
+    if not dexcom_username or not dexcom_password:
+        return "Error: Dexcom ID and Password are required."
     
     try:
-        # Initialize client per request (Stateless)
-        client = NightscoutClient(nightscout_url, api_secret)
-        entries = client.get_sgv(count)
+        # Initialize Dexcom Client (Stateless)
+        client = DexcomClient(dexcom_username, dexcom_password, region)
         
-        if not entries:
-            return "No recent data found."
+        # Get data
+        # Fetching a bit of history to calculate delta
+        readings = client.get_readings(minutes=30, max_count=2)
         
-        # Format for LLM
-        result = "### 🩸 최근 혈당 데이터\n"
-        for e in entries:
-            direction_arrow = {
-                "Flat": "→", "FortyFiveUp": "↗", "SingleUp": "↑", "DoubleUp": "↑↑",
-                "FortyFiveDown": "↘", "SingleDown": "↓", "DoubleDown": "↓↓"
-            }.get(e['direction'], e['direction'])
+        if not readings:
+            return "No recent data found from Dexcom."
+        
+        latest = readings[0]
+        # Calculate delta if possible
+        delta_str = ""
+        if len(readings) > 1:
+            diff = latest['sgv'] - readings[1]['sgv']
+            sign = "+" if diff > 0 else ""
+            delta_str = f"[Delta: {sign}{diff}]"
             
-            result += f"- **{e['sgv']}** mg/dL ({direction_arrow}) [Delta: {e['delta']}]\n"
+        result = f"### 🩸 실시간 덱스콤 혈당\n"
+        result += f"- **{latest['sgv']}** mg/dL ({latest['direction']}) {delta_str}\n"
+        result += f"- 측정 시간: {latest['time']}\n"
+        
         return result
+
     except Exception as e:
-        return f"Error fetching CGM data: {str(e)}"
+        return f"Dexcom Error: {str(e)}"
 
 @mcp.tool()
 def calculate_insulin_dosage(current_bg: int, target_bg: int, isf: int, carbs: int, icr: int) -> str:

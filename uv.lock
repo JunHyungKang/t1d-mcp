@@ -477,6 +477,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pydexcom"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7d/29/675d830369b8a36ab3b443d0666d4bb14b0b723528b0548a41bcaf59694c/pydexcom-0.5.0.tar.gz", hash = "sha256:463b1dc3ebd8770577054762aa53cb35ed5dac0cadbc81e022f1f49310783251", size = 22142, upload-time = "2025-12-08T01:12:15.184Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/42/0dec9c61779504516250c4f201f5b89f1f52fb33a801bc347d18e0485db2/pydexcom-0.5.0-py3-none-any.whl", hash = "sha256:20c7465da93ff73223b29ecb160431bf0ce8fab7e15bd51f559e7bd7761a316d", size = 10990, upload-time = "2025-12-08T01:12:13.976Z" },
+]
+
+[[package]]
 name = "pygments"
 version = "2.19.2"
 source = { registry = "https://pypi.org/simple" }
@@ -691,6 +703,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "mcp" },
+    { name = "pydexcom" },
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "starlette" },
@@ -705,6 +718,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "mcp", specifier = ">=1.25.0" },
+    { name = "pydexcom", specifier = ">=0.5.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "starlette", specifier = ">=0.50.0" },
