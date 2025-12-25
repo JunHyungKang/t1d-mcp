@@ -4,8 +4,8 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-# Assuming we put logic in utils/calculator.py or main logic
-from utils.calculator import calculate_bolus
+# Assuming we put logic in treatment/calculator.py
+from treatment.calculator import calculate_bolus
 
 class TestBolusCalculator(unittest.TestCase):
     def test_calculate_correction_only(self):

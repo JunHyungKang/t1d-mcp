@@ -1,0 +1,21 @@
+# fly.toml app configuration file generated for t1d-mcp
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+# Note: App name will be set when you run 'fly launch'
+
+app = "t1d-mcp-placeholder"
+primary_region = "nrt" # Tokyo (Best for Korea)
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false # CRITICAL: Prevent sleep mode for MCP
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x" # Fits within $5 waiver
+  memory = "256mb"

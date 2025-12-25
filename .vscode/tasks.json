@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "🚀 Run Local (SSE)",
+            "type": "shell",
+            "command": "uv run uvicorn src.sse:app --host 0.0.0.0 --port 8080 --reload",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "☁️ Deploy to Fly.io",
+            "type": "shell",
+            "command": "fly deploy",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "💰 Scale Down (Cost Saving)",
+            "type": "shell",
+            "command": "fly scale count 1",
+            "detail": "머신 개수를 1개로 줄여 무료 범위 유지",
+            "problemMatcher": []
+        },
+        {
+            "label": "📝 View Live Logs",
+            "type": "shell",
+            "command": "fly logs",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        }
+    ]
+}

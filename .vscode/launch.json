@@ -1,0 +1,40 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "🐍 Debug MCP Server (SSE)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "src.sse:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8080",
+                "--reload"
+            ],
+            "jinja": true,
+            "justMyCode": true
+        },
+        {
+            "name": "🤖 Debug MCP Script (Stdio)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🧪 Run Unit Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "unittest",
+            "args": [
+                "discover",
+                "-s",
+                "tests"
+            ],
+            "console": "integratedTerminal"
+        }
+    ]
+}

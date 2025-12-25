@@ -4,8 +4,21 @@ from dotenv import load_dotenv
 from typing import Dict, Any, List
 
 # Import local modules
-from dexcom_client import DexcomClient
-# ... imports ...
+from cgm.dexcom import DexcomClient
+from cgm.nightscout import NightscoutClient
+from nutrition.database import FoodDatabase
+from community.search import HybridSearchClient
+from treatment.calculator import calculate_bolus
+
+# Load environment variables
+load_dotenv()
+
+# Initialize MCP Server
+mcp = FastMCP("T1D Manager")
+
+# Initialize Services
+food_db = FoodDatabase()
+search_client = HybridSearchClient()
 
 @mcp.tool()
 def get_recent_cgm(dexcom_username: str, dexcom_password: str, region: str = "OUS") -> str:

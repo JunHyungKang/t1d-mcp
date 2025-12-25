@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from nutrition import FoodDatabase
+from nutrition.database import FoodDatabase
 
 class TestNutrition(unittest.TestCase):
     def setUp(self):

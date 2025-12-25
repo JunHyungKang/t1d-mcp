@@ -22,8 +22,10 @@ COPY README.md .
 # Add /app to PYTHONPATH so src.main works
 ENV PYTHONPATH=/app
 
-# Expose port 8000 for SSE
-EXPOSE 8000
+# Expose port 8080 (Fly.io standard)
+ENV PORT=8080
+EXPOSE 8080
 
 # Run uvicorn server (SSE mode)
-CMD ["uv", "run", "uvicorn", "src.sse:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use 0.0.0.0 to bind to all interfaces
+CMD ["uv", "run", "uvicorn", "src.sse:app", "--host", "0.0.0.0", "--port", "8080"]

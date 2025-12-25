@@ -42,12 +42,27 @@ async def sse_endpoint(request):
         # This is a safe bet for python SDK structure.
         await mcp._server.run(streams[0], streams[1], mcp._server.create_initialization_options())
 
-async def messages_endpoint(request):
-    await sse.handle_post_message(request.scope, request.receive, request._send)
+import os
+from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        auth_token = os.getenv("MCP_AUTH_TOKEN")
+        if auth_token:
+            auth_header = request.headers.get("Authorization")
+            if not auth_header or auth_header != f"Bearer {auth_token}":
+                return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        return await call_next(request)
+
+middleware = [
+    Middleware(AuthMiddleware)
+]
 
 routes = [
     Route("/sse", endpoint=sse_endpoint),
     Route("/messages", endpoint=messages_endpoint, methods=["POST"]),
 ]
 
-app = Starlette(routes=routes)
+app = Starlette(routes=routes, middleware=middleware)
