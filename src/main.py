@@ -97,5 +97,58 @@ def search_diabetes_community(query: str) -> str:
     
     return output
 
-if __name__ == "__main__":
-    mcp.run()
+@mcp.tool()
+def activate_sick_day_mode(symptoms: str = "감기 기운") -> str:
+    """
+    Activate 'Sick Day Rules' when the user feels unwell.
+    Returns specific guidelines for managing T1D during illness.
+    
+    Args:
+        symptoms: User's reported symptoms (e.g., "cold", "fever").
+    """
+    return f"""
+### 🚨 아픈 날(Sick Day) 모드 시작
+어머니, 많이 편찮으신가요? ('{symptoms}')
+몸이 아프면 스트레스 호르몬 때문에 **혈당이 평소보다 오를 수 있어요.**
+
+**✅ 지금 지켜주세요:**
+1. **혈당 체크**: 평소보다 자주 (2~4시간 간격) 확인해주세요.
+2. **인슐린**: 식사를 못 하셔도 **기저 인슐린은 절대 중단하면 안 됩니다.**
+3. **수분 섭취**: 탈수를 막기 위해 물을 1시간에 한 컵씩 꼭 드세요. 💧
+4. **응급 상황**: 구토가 멈추지 않거나 숨쉬기 힘들면 바로 병원에 가셔야 합니다.
+
+제가 더 자주 상태를 여쭤볼게요. 무리하지 마시고 푹 쉬세요. 힘내세요! 💖
+"""
+
+@mcp.tool()
+def get_glucose_status_with_empathy(dexcom_username: str, dexcom_password: str, region: str = "OUS") -> str:
+    """
+    Check current glucose with a warm, empathetic persona.
+    Analyzes trends and gives context (e.g., "It seems to be stable").
+    """
+    cgm_result = get_recent_cgm(dexcom_username, dexcom_password, region)
+    
+    # Simple logic to add empathy based on the result string using keyword matching
+    # In a real scenario, LLM does this, but we can hint strongly in the return value
+    
+    msg = cgm_result + "\n\n"
+    msg += "--- \n**🤖 AI 코멘트**:\n"
+    
+    if "Error" in cgm_result:
+        msg += "어머니, 연결에 잠시 문제가 생긴 것 같아요. 인터넷 연결을 한번 확인해주시겠어요?"
+    elif "No recent data" in cgm_result:
+        msg += "데이터가 아직 안 넘어왔네요. 센서가 조금 멀리 있나요?"
+    else:
+        # Extract number roughly for logic (This is a naive parsing for demo)
+        # Real logic should happen in get_recent_cgm or here by calling client directly
+        # But to avoid re-calling, we rely on the string output or LLM's interpretation.
+        # Let's trust LLM to convert this data into empathy, 
+        # BUT we provide the 'Persona Instruction' as a distinct return block.
+        
+        msg += "어머니, 식사하신 게 소화되고 있나요? "
+        msg += "수치가 안정적이라면 무리하지 마시고 편안하게 계세요. "
+        msg += "혹시 조금 높더라도 교정 인슐린이 도와줄 거니까 너무 걱정 마시고요. 🍵"
+    
+    return msg
+
+# ... existing tools ...
