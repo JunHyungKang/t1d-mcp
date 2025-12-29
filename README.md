@@ -14,6 +14,7 @@
 - **보안**: 계정 정보는 서버에 저장되지 않고, 조회 시점에만 휘발성으로 사용됩니다 (Stateless).
 - **예시**: "내 아이디는 mom@example.com, 비번은 1234야. 혈당 어때?"
 
+
 ### 2. 아픈 날 (Sick Day) 케어
 - **기능**: "나 감기 기운 있어"라고 말하면, 즉시 위기 관리 모드로 전환됩니다.
 - **케어 내용**: 수분 섭취 알림, 기저 인슐린 유지 강조, 케톤 측정 권고 등 임상 가이드라인 기반 조언 제공.
@@ -58,7 +59,9 @@ uv run uvicorn src.sse:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 ### 서버 배포
-상세한 배포 방법은 [DEPLOYMENT.md](./DEPLOYMENT.md) 문서를 참고하세요.
+상세한 배포 방법 및 심사 가이드는 다음 문서를 참고하세요.
+- [DEPLOYMENT.md](./DEPLOYMENT.md): Fly.io 배포 가이드
+- [GUIDELINE.md](./GUIDELINE.md): MCP 서버 생성 가이드 및 심사 정책
 
 ---
 
