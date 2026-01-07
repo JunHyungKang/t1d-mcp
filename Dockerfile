@@ -26,6 +26,6 @@ ENV PYTHONPATH=/app
 ENV PORT=8080
 EXPOSE 8080
 
-# Run uvicorn server (SSE mode)
+# Run uvicorn server (Streamable HTTP mode)
 # Use 0.0.0.0 to bind to all interfaces
-CMD ["uv", "run", "uvicorn", "src.sse:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uv", "run", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8080"]

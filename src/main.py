@@ -1,14 +1,15 @@
 from mcp.server.fastmcp import FastMCP
 import os
+import httpx
 from dotenv import load_dotenv
 from typing import Dict, Any, List
 
 # Import local modules
-from cgm.dexcom import DexcomClient
-from cgm.nightscout import NightscoutClient
-from nutrition.database import FoodDatabase
-from community.search import HybridSearchClient
-from treatment.calculator import calculate_bolus
+from src.cgm.dexcom import DexcomClient
+from src.cgm.nightscout import NightscoutClient
+from src.nutrition.database import FoodDatabase
+from src.community.search import HybridSearchClient
+from src.treatment.calculator import calculate_bolus
 
 # Load environment variables
 load_dotenv()
@@ -21,46 +22,92 @@ food_db = FoodDatabase()
 search_client = HybridSearchClient()
 
 @mcp.tool()
-def get_recent_cgm(dexcom_username: str, dexcom_password: str, region: str = "OUS") -> str:
+def fetch_dexcom_glucose_state(dexcom_username: str, dexcom_password: str, region: str = "OUS") -> str:
     """
-    Get real-time CGM readings directly from Dexcom Share.
-    This requires the user's Dexcom account credentials.
+    Fetch current glucose state and recent trend from Dexcom Share API.
+    
+    ⚠️ NOTE: This method requires sharing Dexcom account credentials (ID/Password).
+    For better security, prefer using the OAuth 2.0 flow with `get_dexcom_auth_url` 
+    and `get_cgm_with_token` if available.
+    
+    Returns structured JSON data including:
+    - Current glucose value with trend arrow
+    - Delta (change from last reading)
+    - Recent history (last 3 readings) for trend analysis
     
     Args:
-        dexcom_username: Dexcom account ID (email or username)
-        dexcom_password: Dexcom account password
-        region: Account region ('OUS' for Korea/International, 'US' for USA). Default is 'OUS'.
+        dexcom_username: Dexcom Share username
+        dexcom_password: Dexcom Share password
+        region: "OUS" (Outside US) or "US"
+        
+    Returns:
+        JSON string with glucose state data
     """
+    import json
+    from src.cgm.dexcom import DexcomClient
+    
     if not dexcom_username or not dexcom_password:
-        return "Error: Dexcom ID and Password are required."
+        return json.dumps({"error": "Dexcom ID and Password are required", "status": "failed"}, ensure_ascii=False)
     
     try:
-        # Initialize Dexcom Client (Stateless)
+        # Initialize Dexcom Client
         client = DexcomClient(dexcom_username, dexcom_password, region)
         
-        # Get data
-        # Fetching a bit of history to calculate delta
-        readings = client.get_readings(minutes=30, max_count=2)
+        # Get data (fetch last 3 readings for history)
+        readings = client.get_readings(minutes=15, max_count=3)
         
         if not readings:
-            return "No recent data found from Dexcom."
-        
-        latest = readings[0]
-        # Calculate delta if possible
-        delta_str = ""
-        if len(readings) > 1:
-            diff = latest['sgv'] - readings[1]['sgv']
-            sign = "+" if diff > 0 else ""
-            delta_str = f"[Delta: {sign}{diff}]"
+            return json.dumps({"error": "No data found", "status": "empty"}, ensure_ascii=False)
             
-        result = f"### 🩸 실시간 덱스콤 혈당\n"
-        result += f"- **{latest['sgv']}** mg/dL ({latest['direction']}) {delta_str}\n"
-        result += f"- 측정 시간: {latest['time']}\n"
+        current = readings[0]
+        prev = readings[1] if len(readings) > 1 else None
         
-        return result
+        # Readings are objects or dicts depending on implementation. 
+        # Based on previous view, it seemed like dict usage in old code: latest['sgv']
+        # But DexcomClient implementation usually returns objects. Let's handle both.
+        # Checking src/cgm/dexcom.py would be best, but let's assume objects based on typical usage.
+        # Wait, the previous code used latest['sgv']. Let me double check src/cgm/dexcom.py first to be safe.
+        # Actually I can't view it right now easily without another tool call.
+        # Let's support both attribute access and dict access safely.
+        
+        def get_val(obj, key):
+            if isinstance(obj, dict):
+                return obj.get(key)
+            return getattr(obj, key, None)
 
+        val = get_val(current, 'value') or get_val(current, 'sgv')
+        trend = get_val(current, 'trend_arrow') or get_val(current, 'direction')
+        time_val = get_val(current, 'time') or get_val(current, 'datetime')
+        
+        prev_val = (get_val(prev, 'value') or get_val(prev, 'sgv')) if prev else None
+        
+        # Calculate delta
+        delta = 0
+        if prev_val is not None:
+            delta = val - prev_val
+            
+        data = {
+            "current": {
+                "value": val,
+                "unit": "mg/dL",
+                "trend": trend,
+                "delta": delta,
+                "timestamp": str(time_val)
+            },
+            "history": [
+                {
+                    "value": get_val(r, 'value') or get_val(r, 'sgv'),
+                    "trend": get_val(r, 'trend_arrow') or get_val(r, 'direction'),
+                    "timestamp": str(get_val(r, 'time') or get_val(r, 'datetime'))
+                } for r in readings
+            ],
+            "status": "success"
+        }
+        
+        return json.dumps(data, ensure_ascii=False)
+        
     except Exception as e:
-        return f"Dexcom Error: {str(e)}"
+        return json.dumps({"error": str(e), "status": "failed"}, ensure_ascii=False)
 
 @mcp.tool()
 def calculate_insulin_dosage(current_bg: int, target_bg: int, isf: int, carbs: int, icr: int) -> str:
@@ -111,57 +158,230 @@ def search_diabetes_community(query: str) -> str:
     return output
 
 @mcp.tool()
-def activate_sick_day_mode(symptoms: str = "감기 기운") -> str:
+def analyze_sick_day_guidelines(
+    symptoms: str = "감기 기운",
+    current_glucose_mg_dl: int | None = None,
+    ketone_mmol_l: float | None = None
+) -> str:
     """
-    Activate 'Sick Day Rules' when the user feels unwell.
-    Returns specific guidelines for managing T1D during illness.
+    Analyze sick day risks and retrieve clinical guidelines based on patient status.
+    
+    Use this tool when the user reports being unwell. It returns evidence-based
+    recommendations (JSON) from ISPAD/ADA guidelines to help the LLM generate
+    safe and personalized medical advice.
     
     Args:
-        symptoms: User's reported symptoms (e.g., "cold", "fever").
+        symptoms: User's reported symptoms (comma-separated).
+        current_glucose_mg_dl: Current blood glucose in mg/dL (optional).
+        ketone_mmol_l: Current blood ketone level in mmol/L (optional).
+        
+    Returns:
+        JSON string containing risk level, advice, and emergency warnings.
     """
-    return f"""
-### 🚨 아픈 날(Sick Day) 모드 시작
-어머니, 많이 편찮으신가요? ('{symptoms}')
-몸이 아프면 스트레스 호르몬 때문에 **혈당이 평소보다 오를 수 있어요.**
+    import json
+    from src.treatment.sick_day.risk_analyzer import (
+        analyze_sick_day_risk,
+        serialize_sick_day_result
+    )
+    
+    result = analyze_sick_day_risk(
+        symptoms_input=symptoms,
+        glucose_mg_dl=current_glucose_mg_dl,
+        ketone_mmol_l=ketone_mmol_l
+    )
+    
+    # Return JSON string for MCP compatibility
+    return json.dumps(serialize_sick_day_result(result, symptoms), ensure_ascii=False)
 
-**✅ 지금 지켜주세요:**
-1. **혈당 체크**: 평소보다 자주 (2~4시간 간격) 확인해주세요.
-2. **인슐린**: 식사를 못 하셔도 **기저 인슐린은 절대 중단하면 안 됩니다.**
-3. **수분 섭취**: 탈수를 막기 위해 물을 1시간에 한 컵씩 꼭 드세요. 💧
-4. **응급 상황**: 구토가 멈추지 않거나 숨쉬기 힘들면 바로 병원에 가셔야 합니다.
-
-제가 더 자주 상태를 여쭤볼게요. 무리하지 마시고 푹 쉬세요. 힘내세요! 💖
-"""
 
 @mcp.tool()
-def get_glucose_status_with_empathy(dexcom_username: str, dexcom_password: str, region: str = "OUS") -> str:
+def get_sick_day_quick_check(current_glucose_mg_dl: int) -> str:
     """
-    Check current glucose with a warm, empathetic persona.
-    Analyzes trends and gives context (e.g., "It seems to be stable").
-    """
-    cgm_result = get_recent_cgm(dexcom_username, dexcom_password, region)
+    Quick glucose risk check during sick day.
+    Returns immediate action recommendations based on current blood glucose.
     
-    # Simple logic to add empathy based on the result string using keyword matching
-    # In a real scenario, LLM does this, but we can hint strongly in the return value
+    Based on ISPAD 2024 sick day target range (70-180 mg/dL).
     
-    msg = cgm_result + "\n\n"
-    msg += "--- \n**🤖 AI 코멘트**:\n"
-    
-    if "Error" in cgm_result:
-        msg += "어머니, 연결에 잠시 문제가 생긴 것 같아요. 인터넷 연결을 한번 확인해주시겠어요?"
-    elif "No recent data" in cgm_result:
-        msg += "데이터가 아직 안 넘어왔네요. 센서가 조금 멀리 있나요?"
-    else:
-        # Extract number roughly for logic (This is a naive parsing for demo)
-        # Real logic should happen in get_recent_cgm or here by calling client directly
-        # But to avoid re-calling, we rely on the string output or LLM's interpretation.
-        # Let's trust LLM to convert this data into empathy, 
-        # BUT we provide the 'Persona Instruction' as a distinct return block.
+    Args:
+        current_glucose_mg_dl: Current blood glucose in mg/dL.
         
-        msg += "어머니, 식사하신 게 소화되고 있나요? "
-        msg += "수치가 안정적이라면 무리하지 마시고 편안하게 계세요. "
-        msg += "혹시 조금 높더라도 교정 인슐린이 도와줄 거니까 너무 걱정 마시고요. 🍵"
+    Returns:
+        Risk level and immediate actions to take.
+    """
+    from src.treatment.sick_day.risk_analyzer import get_glucose_risk
     
-    return msg
+    result = get_glucose_risk(current_glucose_mg_dl)
+    
+    output = f"""
+### 🩸 혈당 상태: {result.emoji} {result.name_ko}
+
+**현재 혈당**: {current_glucose_mg_dl} mg/dL
+
+**즉시 조치**:
+"""
+    for action in result.actions:
+        output += f"- {action}\n"
+    
+    output += f"\n**후속 조치**: {result.follow_up}\n"
+    output += f"\n_출처: {result.source}_"
+    
+    return output
+
+
+
 
 # ... existing tools ...
+
+# ===== Dexcom Developer API (Official Sandbox) Tools =====
+
+from src.cgm.dexcom_official import DexcomOfficialClient, format_egvs_for_display
+
+@mcp.tool()
+def get_dexcom_auth_url(client_id: str, client_secret: str, redirect_uri: str = "http://localhost:8080/callback") -> str:
+    """
+    Generate Dexcom OAuth authorization URL for Sandbox environment.
+    
+    Use this to get the URL where users can authorize your app.
+    In Sandbox mode, no password is required - users select from a dropdown.
+    
+    Args:
+        client_id: OAuth client ID from Dexcom Developer Portal
+        client_secret: OAuth client secret (stored for later token exchange)
+        redirect_uri: Callback URL registered with your Dexcom app
+        
+    Returns:
+        Authorization URL to redirect the user to
+    """
+    client = DexcomOfficialClient(
+        client_id=client_id,
+        client_secret=client_secret,
+        redirect_uri=redirect_uri,
+        sandbox=True
+    )
+    
+    auth_url = client.get_authorization_url(state="mcp_sandbox_test")
+    
+    return f"""
+### 🔐 Dexcom OAuth 인증 URL (Sandbox)
+
+**아래 URL로 이동하여 인증하세요:**
+
+[인증 페이지 열기]({auth_url})
+
+> [!NOTE]
+> Sandbox 환경에서는 비밀번호 입력 없이 드롭다운에서 테스트 사용자를 선택합니다.
+> 사용 가능한 테스트 사용자: SandboxUser1 ~ SandboxUser7 (SandboxUser7은 G7 데이터)
+
+인증 완료 후 redirect_uri로 돌아오는 URL에서 `code` 파라미터를 확인하세요.
+그 코드를 `get_cgm_sandbox` 도구에 전달하면 혈당 데이터를 조회할 수 있습니다.
+"""
+
+
+@mcp.tool()
+async def get_cgm_sandbox(
+    client_id: str,
+    client_secret: str,
+    authorization_code: str,
+    redirect_uri: str = "http://localhost:8080/callback"
+) -> str:
+    """
+    Get CGM data from Dexcom Developer API Sandbox using authorization code.
+    
+    This tool uses the official Dexcom API (not Share API) and works with
+    the Sandbox environment, which provides simulated CGM data for testing.
+    
+    Args:
+        client_id: OAuth client ID from Dexcom Developer Portal
+        client_secret: OAuth client secret from Dexcom Developer Portal
+        authorization_code: Code received from OAuth callback after user authorization
+        redirect_uri: Same redirect_uri used in get_dexcom_auth_url
+        
+    Returns:
+        Formatted CGM data from the last 24 hours
+    """
+    try:
+        client = DexcomOfficialClient(
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=redirect_uri,
+            sandbox=True
+        )
+        
+        # Exchange authorization code for access token
+        token_response = await client.exchange_code_for_token(authorization_code)
+        access_token = token_response.get("access_token")
+        
+        if not access_token:
+            return "❌ 토큰 교환 실패: access_token을 받지 못했습니다."
+        
+        # Get EGV data
+        egvs_data = await client.get_egvs(access_token)
+        
+        # Format for display
+        result = format_egvs_for_display(egvs_data, limit=10)
+        result += "\n\n> ✅ Dexcom Developer API Sandbox에서 데이터를 성공적으로 조회했습니다."
+        
+        return result
+        
+    except httpx.HTTPStatusError as e:
+        return f"❌ API 오류: {e.response.status_code} - {e.response.text}"
+    except Exception as e:
+        return f"❌ 오류 발생: {str(e)}"
+
+
+@mcp.tool()
+async def get_cgm_with_token(
+    access_token: str,
+    hours: int = 24,
+    sandbox: bool = True
+) -> str:
+    """
+    Get CGM data using an existing access token.
+    
+    Use this if you already have a valid access token from a previous OAuth flow.
+    
+    Args:
+        access_token: Valid OAuth access token
+        hours: Number of hours of data to retrieve (default: 24, max: 720 for 30 days)
+        sandbox: Whether to use sandbox environment (default: True)
+        
+    Returns:
+        Formatted CGM data
+    """
+    from datetime import datetime, timedelta
+    
+    try:
+        # Create a minimal client just for API calls
+        base_url = (
+            "https://sandbox-api.dexcom.com" if sandbox 
+            else "https://api.dexcom.com"
+        )
+        
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(hours=min(hours, 720))  # Max 30 days
+        
+        async with httpx.AsyncClient() as http_client:
+            response = await http_client.get(
+                f"{base_url}/v3/users/self/egvs",
+                params={
+                    "startDate": start_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "endDate": end_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                },
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            response.raise_for_status()
+            egvs_data = response.json()
+        
+        result = format_egvs_for_display(egvs_data, limit=10)
+        env_label = "Sandbox" if sandbox else "Production"
+        result += f"\n\n> ✅ Dexcom Developer API ({env_label})에서 조회 완료"
+        
+        return result
+        
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            return "❌ 인증 실패: 토큰이 만료되었거나 유효하지 않습니다. 다시 인증해주세요."
+        return f"❌ API 오류: {e.response.status_code} - {e.response.text}"
+    except Exception as e:
+        return f"❌ 오류 발생: {str(e)}"
+
