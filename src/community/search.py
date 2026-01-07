@@ -56,7 +56,14 @@ class HybridSearchClient:
     def search_hybrid(self, query: str) -> List[Dict[str, str]]:
         """
         Combines results from Naver and Kakao.
+        Automatically adds context for Type 1 Diabetes if missing.
         """
-        naver_results = self.search_naver_blog(query)
-        kakao_results = self.search_kakao_web(query)
+        # Enhance query for Type 1 Diabetes context if not present
+        if "1형" not in query and "type 1" not in query.lower():
+            enhanced_query = f"1형 당뇨 {query}"
+        else:
+            enhanced_query = query
+            
+        naver_results = self.search_naver_blog(enhanced_query)
+        kakao_results = self.search_kakao_web(enhanced_query)
         return naver_results + kakao_results
