@@ -20,10 +20,14 @@ class HybridSearchClient:
         params = {"query": query, "display": count, "sort": "sim"}
         
         try:
-            resp = requests.get(url, headers=headers, params=params)
+            # MCP Timeout is 10s, so we set a safe limit of 3s per API
+            resp = requests.get(url, headers=headers, params=params, timeout=3.0)
             resp.raise_for_status()
             data = resp.json()
             return [{"title": item["title"], "link": item["link"], "source": "Naver Blog"} for item in data.get("items", [])]
+        except requests.exceptions.Timeout:
+            print("Naver Search Timeout (Skipping)")
+            return []
         except Exception as e:
             print(f"Naver Search Error: {e}")
             return []
@@ -37,10 +41,14 @@ class HybridSearchClient:
         params = {"query": query, "size": count}
 
         try:
-            resp = requests.get(url, headers=headers, params=params)
+            # Safe limit of 3s
+            resp = requests.get(url, headers=headers, params=params, timeout=3.0)
             resp.raise_for_status()
             data = resp.json()
             return [{"title": item["title"], "link": item["url"], "source": "Kakao Web"} for item in data.get("documents", [])]
+        except requests.exceptions.Timeout:
+            print("Kakao Search Timeout (Skipping)")
+            return []
         except Exception as e:
             print(f"Kakao Search Error: {e}")
             return []
