@@ -138,16 +138,17 @@ def search_diabetes_community(query: str) -> str:
     Search Naver Blogs and Kakao Web for patient experiences and tips.
     Use this for finding non-medical life tips (e.g. snacks, patches, travel).
     """
+    import json
     results = search_client.search_hybrid(query)
-    if not results:
-        return "검색 결과가 없습니다."
     
-    output = f"### 🔍 '{query}' 커뮤니티 검색 결과\n"
+    # Add source icons for better structured data context
     for item in results:
-        icon = "🟢" if item['source'] == "Naver Blog" else "🟡"
-        output += f"- {icon} [{item['title']}]({item['link']})\n"
-    
-    return output
+        if item.get("source") == "Naver Blog":
+            item["icon"] = "🟢"
+        elif item.get("source") == "Kakao Web":
+            item["icon"] = "🟡"
+            
+    return json.dumps(results, ensure_ascii=False)
 
 @mcp.tool()
 def analyze_sick_day_guidelines(
