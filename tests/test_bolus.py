@@ -12,22 +12,29 @@ class TestBolusCalculator(unittest.TestCase):
         # BG: 200, Target: 100, ISF: 50, Carbs: 0, ICR: 10
         # (200 - 100) / 50 = 2.0 units
         result = calculate_bolus(current_bg=200, target_bg=100, isf=50, carbs=0, icr=10)
-        self.assertAlmostEqual(result['units'], 2.0)
-        self.assertIn("교정 인슐린", result['explanation'])
+        self.assertAlmostEqual(result['calculation']['total_units'], 2.0)
+        self.assertAlmostEqual(result['calculation']['correction_units'], 2.0)
+        self.assertEqual(result['calculation']['meal_units'], 0)
 
     def test_calculate_carb_only(self):
         # BG: 100, Target: 100, ISF: 50, Carbs: 50, ICR: 10
         # (50 / 10) = 5.0 units
         result = calculate_bolus(current_bg=100, target_bg=100, isf=50, carbs=50, icr=10)
-        self.assertAlmostEqual(result['units'], 5.0)
-        self.assertIn("식사 인슐린", result['explanation'])
+        self.assertAlmostEqual(result['calculation']['total_units'], 5.0)
+        self.assertEqual(result['calculation']['correction_units'], 0)
+        self.assertAlmostEqual(result['calculation']['meal_units'], 5.0)
 
     def test_calculate_total(self):
         # BG: 200, Target: 100, ISF: 50 (Cor: 2u)
         # Carbs: 50, ICR: 10 (Carb: 5u)
         # Total: 7u
         result = calculate_bolus(current_bg=200, target_bg=100, isf=50, carbs=50, icr=10)
-        self.assertAlmostEqual(result['units'], 7.0)
+        self.assertAlmostEqual(result['calculation']['total_units'], 7.0)
+        self.assertAlmostEqual(result['calculation']['correction_units'], 2.0)
+        self.assertAlmostEqual(result['calculation']['meal_units'], 5.0)
+        
+        # Verify formula string presence
+        self.assertIn("200 - 100", result['calculation']['formula']['correction'])
 
     def test_negative_correction(self):
         # BG: 80, Target: 100 -> Negative correction should be treated carefully
@@ -37,14 +44,14 @@ class TestBolusCalculator(unittest.TestCase):
         # Carbs: 50 / 10 = 5.0
         # Total: 4.6
         result = calculate_bolus(current_bg=80, target_bg=100, isf=50, carbs=50, icr=10)
-        self.assertAlmostEqual(result['units'], 4.6)
+        self.assertAlmostEqual(result['calculation']['total_units'], 4.6)
+        self.assertAlmostEqual(result['calculation']['correction_units'], -0.4)
 
     def test_visual_explanation(self):
         # Check if markdown table/explanation exists
         result = calculate_bolus(current_bg=200, target_bg=100, isf=50, carbs=50, icr=10)
-        self.assertIn("| 구분 |", result['markdown_table'])
-        self.assertIn("기저 인슐린", result['markdown_table'])
-        self.assertIn("기초", result['educational_content'])
+        self.assertIn("| 구분 |", result['educational']['analogy_table'])
+        self.assertIn("기초", result['educational']['simple_logic'])
 
 if __name__ == '__main__':
     unittest.main()

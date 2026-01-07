@@ -19,21 +19,19 @@ def calculate_bolus(current_bg: int, target_bg: int, isf: int, carbs: int, icr: 
     # Generate Education Content
     edu = get_insulin_education()
     
-    # Detailed text explanation
-    explanation = (
-        f"### 🧮 인슐린 계산 상세\n"
-        f"- **교정 인슐린** (높은 혈당 잡기): `({current_bg} - {target_bg}) ÷ {isf} = {correction_units:.2f}단위`\n"
-        f"- **식사 인슐린** (밥 먹는 것 커버): `{carbs}g ÷ {icr} = {meal_units:.2f}단위`\n"
-        f"- **총 필요량**: `{total_units:.2f} 단위`\n\n"
-        f"_(※ 실제 주입 시에는 펜/펌프 단위에 맞춰 반올림하세요)_"
-    )
-    
     return {
-        "units": total_units,
-        "correction_units": correction_units,
-        "meal_units": meal_units,
-        "explanation": explanation,
-        "educational_content": edu["simple_logic"], # Short text
-        "markdown_table": edu["markdown_table"],
-        "mermaid_diagram": edu["mermaid_diagram"]
+        "calculation": {
+            "total_units": round(total_units, 2),
+            "correction_units": round(correction_units, 2),
+            "meal_units": round(meal_units, 2),
+            "formula": {
+                "correction": f"({current_bg} - {target_bg}) / {isf}",
+                "meal": f"{carbs} / {icr}"
+            }
+        },
+        "educational": {
+            "simple_logic": edu["simple_logic"],
+            "analogy_table": edu["markdown_table"], # Keeping markdown table as it's complex to structure purely
+            "mermaid_diagram": edu["mermaid_diagram"]
+        }
     }

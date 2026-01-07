@@ -113,21 +113,13 @@ def fetch_dexcom_glucose_state(dexcom_username: str, dexcom_password: str, regio
 def calculate_insulin_dosage(current_bg: int, target_bg: int, isf: int, carbs: int, icr: int) -> str:
     """
     Calculate suggested insulin bolus (Correction + Meal).
-    ALWAYS returns educational explanation detailing the calculation.
-    """
-    result = calculate_bolus(current_bg, target_bg, isf, carbs, icr)
+    Returns accurate calculation data and educational visual structures in JSON format.
     
-    output = f"""
-## 💉 인슐린 계산 결과
-**총 권장 용량: {result['units']:.1f} 단위**
-
-{result['explanation']}
-
-{result['educational_content']}
-
-{result['markdown_table']}
-"""
-    return output
+    The LLM should use this data to explain the calculation to the user.
+    """
+    import json
+    result = calculate_bolus(current_bg, target_bg, isf, carbs, icr)
+    return json.dumps(result, ensure_ascii=False)
 
 @mcp.tool()
 def search_nutrition_info(food_name: str) -> str:
