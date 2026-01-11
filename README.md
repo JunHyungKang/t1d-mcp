@@ -112,16 +112,15 @@ npx @modelcontextprotocol/inspector --transport http --server-url http://127.0.0
 
 ### 완료됨
 - [x] SSE → Streamable HTTP 마이그레이션 (`src/server.py`)
-- [x] `analyze_sick_day_guidelines` 도구 개선 (JSON 구조화, 의학적 근거 보강)
-- [x] `fetch_dexcom_glucose_state` 도구 개선 (JSON 구조화, OAuth 권장)
-- [x] MCP Inspector 연동 및 테스트
-
-### 완료됨 (추가)
+- [x] Sick Day 가이드라인 도구 개선 (JSON 구조화, 의학적 근거 보강)
 - [x] Fly.io 배포 완료 (`https://t1d-mcp.fly.dev/mcp`)
 - [x] Dexcom Developer Portal 앱 등록 (Sandbox)
+- [x] Legacy ID/PW 도구 제거 (심사 기준 준수)
+- [x] 도구 최적화 (9개 → 6개)
 
 ### 예정
 - [ ] Dexcom Production 환경 테스트
+- [ ] 영양정보 API 연동 (FoodSafetyKorea 등 외부 API)
 
 ---
 

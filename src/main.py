@@ -6,9 +6,6 @@ from dotenv import load_dotenv
 from typing import Dict, Any, List
 
 # Import local modules
-from src.cgm.dexcom import DexcomClient
-from src.cgm.nightscout import NightscoutClient
-from src.nutrition.database import FoodDatabase
 from src.community.search import HybridSearchClient
 from src.treatment.calculator import calculate_bolus
 
@@ -27,7 +24,6 @@ transport_security = TransportSecuritySettings(
 mcp = FastMCP("T1D Manager", transport_security=transport_security)
 
 # Initialize Services
-food_db = FoodDatabase()
 search_client = HybridSearchClient()
 
 @mcp.tool()
@@ -56,26 +52,6 @@ def calculate_insulin_dosage(current_bg: int, target_bg: int, isf: int, carbs: i
     import json
     result = calculate_bolus(current_bg, target_bg, isf, carbs, icr)
     return json.dumps(result, ensure_ascii=False)
-
-@mcp.tool()
-def search_nutrition_info(food_name: str) -> str:
-    """
-    Search for carbohydrate content of a food item in the nutrition database.
-
-    Use this tool when a user asks about carbs in food for insulin calculation,
-    such as "How many carbs in rice?" or "탄수화물 정보 알려줘".
-
-    Args:
-        food_name: Name of the food item in Korean or English
-
-    Returns:
-        Formatted nutrition info with carbohydrate content per serving
-    """
-    info = food_db.search(food_name)
-    if info:
-        return f"### 🍎 {info['name']}\n- **탄수화물**: {info['carbs']}g ({info['unit']})\n- **참고**: {info['desc']}"
-    else:
-        return f"'{food_name}'에 대한 영양 정보를 찾을 수 없습니다."
 
 @mcp.tool()
 def search_diabetes_community(query: str) -> str:
