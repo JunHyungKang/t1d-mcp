@@ -1,4 +1,5 @@
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 import os
 import httpx
 from dotenv import load_dotenv
@@ -14,8 +15,16 @@ from src.treatment.calculator import calculate_bolus
 # Load environment variables
 load_dotenv()
 
-# Initialize MCP Server
-mcp = FastMCP("T1D Manager")
+# Transport security settings for Fly.io deployment
+# Allows the Fly.io proxy Host header to pass validation
+transport_security = TransportSecuritySettings(
+    enable_dns_rebinding_protection=True,
+    allowed_hosts=["t1d-mcp.fly.dev", "localhost", "localhost:8080", "127.0.0.1:8080"],
+    allowed_origins=["*"],  # PlayMCP에서 접근 허용
+)
+
+# Initialize MCP Server with transport security
+mcp = FastMCP("T1D Manager", transport_security=transport_security)
 
 # Initialize Services
 food_db = FoodDatabase()

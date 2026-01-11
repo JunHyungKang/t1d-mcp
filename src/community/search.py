@@ -2,6 +2,12 @@ import os
 import requests
 from typing import List, Dict, Any, Optional
 
+from src.cache import cached
+
+# 30일 TTL (초 단위)
+SEARCH_CACHE_TTL = 30 * 24 * 60 * 60
+
+
 class HybridSearchClient:
     def __init__(self):
         self.naver_client_id = os.getenv("NAVER_CLIENT_ID")
@@ -53,10 +59,14 @@ class HybridSearchClient:
             print(f"Kakao Search Error: {e}")
             return []
 
+    @cached(key_prefix="t1d:search", ttl=SEARCH_CACHE_TTL, normalize=True)
     def search_hybrid(self, query: str) -> List[Dict[str, str]]:
         """
         Combines results from Naver and Kakao.
         Automatically adds context for Type 1 Diabetes if missing.
+
+        Results are cached in Redis for 30 days. Similar queries
+        (e.g., "저혈당을 간식" ≈ "저혈당 간식") use the same cache entry.
         """
         # Enhance query for Type 1 Diabetes context if not present
         if "1형" not in query and "type 1" not in query.lower():

@@ -18,6 +18,7 @@
 | **대표 이미지** | `t1d_mcp_icon.png` (600x600) |
 | **MCP 이름** | T1D Manager |
 | **MCP 식별자** | t1dManager |
+| **MCP Endpoint** | `https://t1d-mcp.fly.dev/mcp` |
 | **MCP 설명** | 1형 당뇨 환자와 보호자를 위한 AI 기반 혈당 관리 도우미입니다. Dexcom CGM 실시간 연동(OAuth 2.0)으로 현재 혈당과 추세를 확인하고, ISPAD/ADA 임상 가이드라인 기반 아픈 날(Sick Day) 케어 및 인슐린 계산을 지원합니다. 네이버/카카오 하이브리드 검색으로 당뇨 커뮤니티 꿀팁도 제공합니다. |
 
 ### 💬 대화 예시
@@ -115,9 +116,12 @@ npx @modelcontextprotocol/inspector --transport http --server-url http://127.0.0
 - [x] `fetch_dexcom_glucose_state` 도구 개선 (JSON 구조화, OAuth 권장)
 - [x] MCP Inspector 연동 및 테스트
 
+### 완료됨 (추가)
+- [x] Fly.io 배포 완료 (`https://t1d-mcp.fly.dev/mcp`)
+- [x] Dexcom Developer Portal 앱 등록 (Sandbox)
+
 ### 예정
-- [ ] Fly.io 배포 설정 최신화
-- [ ] 실제 Dexcom Developer Portal 앱 등록 및 Production 테스트
+- [ ] Dexcom Production 환경 테스트
 
 ---
 
@@ -126,9 +130,8 @@ npx @modelcontextprotocol/inspector --transport http --server-url http://127.0.0
 > 의학적 결정은 반드시 담당 의료진과 상의해야 합니다.
 > 인슐린 용량 계산이나 Sick Day 관리는 환자의 개별 상황에 따라 달라질 수 있습니다.
 
-### 배포 가이드
-상세한 배포 방법 및 심사 가이드는 다음 문서를 참고하세요.
-- [DEPLOYMENT.md](./DEPLOYMENT.md): Fly.io 배포 가이드
+### 📚 관련 문서
+- [DEPLOYMENT.md](./DEPLOYMENT.md): **Fly.io 배포 가이드** (Vercel 대비 장점, 무료 한도, 배포 절차)
 - [GUIDELINE.md](./GUIDELINE.md): MCP 서버 생성 가이드 및 심사 정책
 
 

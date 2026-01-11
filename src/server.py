@@ -44,11 +44,10 @@ async def health_check(request: Request) -> JSONResponse:
 
 
 # FastMCP의 내장 Streamable HTTP 앱 사용 (lifespan 포함)
-# 이 앱은 자체적으로 /mcp 라우트를 가지고 있음
+# transport_security 설정은 main.py에서 FastMCP 초기화 시 적용됨
 _mcp_app = mcp.streamable_http_app()
 
 # MCP 앱에 커스텀 라우트 추가 (/health)
-# Starlette 앱의 routes에 직접 추가
 _mcp_app.routes.insert(0, Route("/health", endpoint=health_check, methods=["GET"]))
 
 # 미들웨어 추가
