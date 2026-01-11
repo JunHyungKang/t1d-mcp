@@ -143,40 +143,6 @@ def analyze_sick_day_guidelines(
     return json.dumps(serialize_sick_day_result(result, symptoms), ensure_ascii=False)
 
 
-@mcp.tool()
-def get_sick_day_quick_check(current_glucose_mg_dl: int) -> str:
-    """
-    Quick glucose risk check during sick day.
-    Returns immediate action recommendations based on current blood glucose.
-    
-    Based on ISPAD 2024 sick day target range (70-180 mg/dL).
-    
-    Args:
-        current_glucose_mg_dl: Current blood glucose in mg/dL.
-        
-    Returns:
-        Risk level and immediate actions to take.
-    """
-    from src.treatment.sick_day.risk_analyzer import get_glucose_risk
-    
-    result = get_glucose_risk(current_glucose_mg_dl)
-    
-    output = f"""
-### 🩸 혈당 상태: {result.emoji} {result.name_ko}
-
-**현재 혈당**: {current_glucose_mg_dl} mg/dL
-
-**즉시 조치**:
-"""
-    for action in result.actions:
-        output += f"- {action}\n"
-    
-    output += f"\n**후속 조치**: {result.follow_up}\n"
-    output += f"\n_출처: {result.source}_"
-    
-    return output
-
-
 
 
 # ... existing tools ...
