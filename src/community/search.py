@@ -51,7 +51,7 @@ class HybridSearchClient:
             resp = requests.get(url, headers=headers, params=params, timeout=3.0)
             resp.raise_for_status()
             data = resp.json()
-            return [{"title": item["title"], "link": item["url"], "source": "Kakao Web"} for item in data.get("documents", [])]
+            return [{"title": item["title"], "link": item["url"], "source": "Daum Web"} for item in data.get("documents", [])]
         except requests.exceptions.Timeout:
             print("Kakao Search Timeout (Skipping)")
             return []

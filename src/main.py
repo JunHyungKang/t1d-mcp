@@ -77,7 +77,7 @@ def search_diabetes_community(query: str) -> str:
     for item in results:
         if item.get("source") == "Naver Blog":
             item["icon"] = "🟢"
-        elif item.get("source") == "Kakao Web":
+        elif item.get("source") == "Daum Web":
             item["icon"] = "🟡"
             
     return json.dumps(results, ensure_ascii=False)
