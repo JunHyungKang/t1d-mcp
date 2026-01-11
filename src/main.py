@@ -31,100 +31,27 @@ food_db = FoodDatabase()
 search_client = HybridSearchClient()
 
 @mcp.tool()
-def fetch_dexcom_glucose_state(dexcom_username: str, dexcom_password: str, region: str = "OUS") -> str:
-    """
-    Fetch current glucose state and recent trend from Dexcom Share API.
-    
-    ⚠️ NOTE: This method requires sharing Dexcom account credentials (ID/Password).
-    For better security, prefer using the OAuth 2.0 flow with `get_dexcom_auth_url` 
-    and `get_cgm_with_token` if available.
-    
-    Returns structured JSON data including:
-    - Current glucose value with trend arrow
-    - Delta (change from last reading)
-    - Recent history (last 3 readings) for trend analysis
-    
-    Args:
-        dexcom_username: Dexcom Share username
-        dexcom_password: Dexcom Share password
-        region: "OUS" (Outside US) or "US"
-        
-    Returns:
-        JSON string with glucose state data
-    """
-    import json
-    from src.cgm.dexcom import DexcomClient
-    
-    if not dexcom_username or not dexcom_password:
-        return json.dumps({"error": "Dexcom ID and Password are required", "status": "failed"}, ensure_ascii=False)
-    
-    try:
-        # Initialize Dexcom Client
-        client = DexcomClient(dexcom_username, dexcom_password, region)
-        
-        # Get data (fetch last 3 readings for history)
-        readings = client.get_readings(minutes=15, max_count=3)
-        
-        if not readings:
-            return json.dumps({"error": "No data found", "status": "empty"}, ensure_ascii=False)
-            
-        current = readings[0]
-        prev = readings[1] if len(readings) > 1 else None
-        
-        # Readings are objects or dicts depending on implementation. 
-        # Based on previous view, it seemed like dict usage in old code: latest['sgv']
-        # But DexcomClient implementation usually returns objects. Let's handle both.
-        # Checking src/cgm/dexcom.py would be best, but let's assume objects based on typical usage.
-        # Wait, the previous code used latest['sgv']. Let me double check src/cgm/dexcom.py first to be safe.
-        # Actually I can't view it right now easily without another tool call.
-        # Let's support both attribute access and dict access safely.
-        
-        def get_val(obj, key):
-            if isinstance(obj, dict):
-                return obj.get(key)
-            return getattr(obj, key, None)
-
-        val = get_val(current, 'value') or get_val(current, 'sgv')
-        trend = get_val(current, 'trend_arrow') or get_val(current, 'direction')
-        time_val = get_val(current, 'time') or get_val(current, 'datetime')
-        
-        prev_val = (get_val(prev, 'value') or get_val(prev, 'sgv')) if prev else None
-        
-        # Calculate delta
-        delta = 0
-        if prev_val is not None:
-            delta = val - prev_val
-            
-        data = {
-            "current": {
-                "value": val,
-                "unit": "mg/dL",
-                "trend": trend,
-                "delta": delta,
-                "timestamp": str(time_val)
-            },
-            "history": [
-                {
-                    "value": get_val(r, 'value') or get_val(r, 'sgv'),
-                    "trend": get_val(r, 'trend_arrow') or get_val(r, 'direction'),
-                    "timestamp": str(get_val(r, 'time') or get_val(r, 'datetime'))
-                } for r in readings
-            ],
-            "status": "success"
-        }
-        
-        return json.dumps(data, ensure_ascii=False)
-        
-    except Exception as e:
-        return json.dumps({"error": str(e), "status": "failed"}, ensure_ascii=False)
-
-@mcp.tool()
 def calculate_insulin_dosage(current_bg: int, target_bg: int, isf: int, carbs: int, icr: int) -> str:
     """
-    Calculate suggested insulin bolus (Correction + Meal).
-    Returns accurate calculation data and educational visual structures in JSON format.
-    
-    The LLM should use this data to explain the calculation to the user.
+    Calculate suggested insulin bolus dose for Type 1 diabetes management.
+
+    This tool calculates both correction dose (for high blood glucose) and
+    meal dose (for carbohydrate intake) using standard formulas.
+
+    Use this when a user asks:
+    - "How much insulin should I take?"
+    - "Calculate my bolus for this meal"
+    - "I need to correct my high blood sugar"
+
+    Args:
+        current_bg: Current blood glucose level in mg/dL
+        target_bg: Target blood glucose level in mg/dL (typically 100-120)
+        isf: Insulin Sensitivity Factor - how much 1 unit lowers glucose (mg/dL)
+        carbs: Carbohydrates to be consumed in grams
+        icr: Insulin-to-Carb Ratio - grams of carbs covered by 1 unit
+
+    Returns:
+        JSON with correction_dose, meal_dose, total_dose, and calculation breakdown
     """
     import json
     result = calculate_bolus(current_bg, target_bg, isf, carbs, icr)
@@ -133,7 +60,16 @@ def calculate_insulin_dosage(current_bg: int, target_bg: int, isf: int, carbs: i
 @mcp.tool()
 def search_nutrition_info(food_name: str) -> str:
     """
-    Search for carbohydrate content of a food item.
+    Search for carbohydrate content of a food item in the nutrition database.
+
+    Use this tool when a user asks about carbs in food for insulin calculation,
+    such as "How many carbs in rice?" or "탄수화물 정보 알려줘".
+
+    Args:
+        food_name: Name of the food item in Korean or English
+
+    Returns:
+        Formatted nutrition info with carbohydrate content per serving
     """
     info = food_db.search(food_name)
     if info:
@@ -144,8 +80,19 @@ def search_nutrition_info(food_name: str) -> str:
 @mcp.tool()
 def search_diabetes_community(query: str) -> str:
     """
-    Search Naver Blogs and Kakao Web for patient experiences and tips.
-    Use this for finding non-medical life tips (e.g. snacks, patches, travel).
+    Search Korean blogs and web pages for Type 1 diabetes patient experiences and tips.
+
+    Use this tool to find real-world advice from the diabetes community, such as:
+    - Low blood sugar snack recommendations
+    - CGM sensor patch tips
+    - Travel advice for diabetics
+    - Daily life management tips
+
+    Args:
+        query: Search query in Korean or English
+
+    Returns:
+        JSON array of search results with title, link, and source
     """
     import json
     results = search_client.search_hybrid(query)
