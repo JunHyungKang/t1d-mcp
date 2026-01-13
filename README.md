@@ -7,70 +7,107 @@
 **카카오 MCP Develop Competition (MCP Player 10) 출품작**
 
 1형 당뇨 환자와 보호자를 위한 **AI 에이전트 서버**입니다.
-어머니가 **"내 덱스콤 아이디는 이거야"**라고 말만 하면, 복잡한 설정 없이도 실시간 혈당 관리와 아픈 날(Sick Day) 케어를 받을 수 있습니다.
+복잡한 설정 없이도 실시간 혈당 관리와 아픈 날(Sick Day) 케어를 받을 수 있습니다.
 
 ---
 
 ## 📋 PlayMCP 등록 정보
 
+### 🎯 Lite 버전 (경연용 - OAuth 불필요)
+
 | 항목 | 값 |
 |------|-----|
-| **대표 이미지** | `t1d_mcp_icon.png` (600x600) |
-| **MCP 이름** | T1D Manager |
-| **MCP 식별자** | t1dManager |
-| **MCP Endpoint** | `https://t1d-mcp.fly.dev/mcp` |
-| **MCP 설명** | 1형 당뇨 환자와 보호자를 위한 AI 기반 혈당 관리 도우미입니다. Dexcom CGM 실시간 연동(OAuth 2.0)으로 현재 혈당과 추세를 확인하고, ISPAD/ADA 임상 가이드라인 기반 아픈 날(Sick Day) 케어 및 인슐린 계산을 지원합니다. 네이버/카카오 하이브리드 검색으로 당뇨 커뮤니티 꿀팁도 제공합니다. |
+| **MCP 이름** | T1D Manager Lite |
+| **MCP Endpoint** | `https://t1d-mcp-lite.fly.dev/mcp` |
+| **도구 개수** | 3개 |
 
-### 💬 대화 예시
+**MCP 설명 (복사용)**:
+> 1형 당뇨 환자와 보호자를 위한 AI 혈당 관리 도우미입니다. 인슐린 용량 계산(ISF/ICR 기반), ISPAD/ADA 임상 가이드라인 기반 아픈 날(Sick Day) 케어, 네이버/다음 하이브리드 검색으로 당뇨 커뮤니티 꿀팁을 제공합니다. OAuth 설정 없이 바로 사용 가능합니다.
+
+---
+
+### 🔐 Full 버전 (Dexcom OAuth 포함)
+
+| 항목 | 값 |
+|------|-----|
+| **MCP 이름** | T1D Manager |
+| **MCP Endpoint** | `https://t1d-mcp.fly.dev/mcp` |
+| **도구 개수** | 6개 |
+
+**MCP 설명 (복사용)**:
+> 1형 당뇨 환자와 보호자를 위한 AI 혈당 관리 도우미입니다. Dexcom CGM 실시간 연동(OAuth 2.0)으로 현재 혈당과 추세를 확인하고, ISPAD/ADA 임상 가이드라인 기반 아픈 날(Sick Day) 케어 및 인슐린 계산을 지원합니다. 네이버/다음 하이브리드 검색으로 당뇨 커뮤니티 꿀팁도 제공합니다.
+
+---
+
+## 🛠️ 도구 목록
+
+### 핵심 도구 (Lite/Full 공통)
+
+| 도구 | 설명 |
+|------|------|
+| `calculate_insulin_dosage` | 혈당/탄수화물 기반 인슐린 용량 계산 |
+| `search_diabetes_community` | 네이버/다음 하이브리드 검색 (환자 경험담, 꿀팁) |
+| `analyze_sick_day_guidelines` | ISPAD/ADA 기반 아픈 날 케어 가이드라인 |
+
+### Dexcom 도구 (Full 버전만)
+
+| 도구 | 설명 |
+|------|------|
+| `get_dexcom_auth_url` | Dexcom OAuth 인증 URL 생성 |
+| `get_cgm_sandbox` | Authorization Code로 CGM 데이터 조회 |
+| `get_cgm_with_token` | Access Token으로 CGM 데이터 조회 |
+
+---
+
+## 💬 대화 예시
 
 | 번호 | 예시 |
 |------|------|
-| 1 | 지금 내 혈당 어때? 추세도 알려줘 |
+| 1 | 밥 먹으려는데 탄수화물 60g이야. 인슐린 얼마나 맞아야 해? |
 | 2 | 나 열나고 토했어. 어떻게 해야 해? |
-| 3 | 밥 먹으려는데 탄수화물 60g이야. 인슐린 얼마나 맞아야 해? |
+| 3 | 저혈당 간식 추천해줘 |
+| 4 | Dexcom 로그인 할래 (Full 버전) |
 
 ---
 
 ## ✨ 핵심 기능
 
-### 1. 📊 Dexcom CGM 실시간 연동 (OAuth 2.0 권장)
-- **핵심**: "엄마, 나 지금 혈당 45인데 주스 마셔?" → "네! 저혈당이네요. 포도당 15g 섭취하세요."
-- **기능**: Dexcom Share API 및 **공식 Developer API (OAuth 2.0)** 지원.
-- **예시**: "내 아이디는 mom@example.com, 비번은 1234야. 혈당 어때?" (Legacy) / "Dexcom 로그인 할래" (OAuth)
+### 1. 🍽️ 스마트 인슐린 계산
+- **기능**: 혈당/탄수화물 입력 시 정확한 인슐린 용량과 교육 자료를 **구조화된 JSON**으로 반환합니다.
+- 할루시네이션 없는 정확한 계산을 보장합니다.
 
-### 2. 🏥 아픈 날 (Sick Day) 케어 (임상 가이드라인 준수)
-- **기능**: "나 열 나고 토했어" → ISPAD/ADA 가이드라인 기반 위험도 분석 및 행동 지침(JSON) 제공.
-- **데이터**: 인슐린 용량이 아닌, **수분 섭취, 케톤 측정, 응급실 방문 기준** 등 안전한 의료 지침을 안내합니다.
+### 2. 🏥 아픈 날 (Sick Day) 케어
+- **기능**: \"나 열 나고 토했어\" → ISPAD/ADA 가이드라인 기반 위험도 분석 및 행동 지침 제공.
+- **데이터**: 수분 섭취, 케톤 측정, 응급실 방문 기준 등 안전한 의료 지침을 안내합니다.
 
+### 3. 🔍 하이브리드 커뮤니티 검색
+- **기능**: 네이버 블로그(환자 경험담)와 다음 웹(정보)을 동시에 검색하여 실질적인 꿀팁을 제공합니다.
 
-
-### 3. 🍽️ 스마트 인슐린 계산 (JSON)
-- **기능**: 혈당/탄수화물 입력 시 정확한 인슐린 용량과 교육 자료(Mermaid)를 **구조화된 JSON**으로 반환합니다. 할루시네이션 없는 정확한 계산을 보장합니다.
-
-### 4. 🔍 하이브리드 커뮤니티 검색
-- **기능**: 네이버 블로그(환자 경험담)와 카카오 웹(정보)을 동시에 검색하여 실질적인 꿀팁을 제공합니다.
+### 4. 📊 Dexcom CGM 실시간 연동 (Full 버전)
+- **기능**: Dexcom 공식 Developer API (OAuth 2.0) 지원으로 실시간 혈당 및 추세 확인.
 
 ---
 
 ## 🛠️ 기술 스택 & 구조
 - **Core**: Python 3.12, `mcp` (Model Context Protocol), `FastMCP`
-- **Transport**: **Streamable HTTP** (MCP 표준 준수, SSE over HTTP)
-- **Integrations**: Dexcom Share API, Dexcom Developer API (OAuth), Naver/Kakao Search
-- **Infra**: Docker, Fly.io (Ready)
+- **Transport**: **Streamable HTTP** (MCP 표준 준수)
+- **Integrations**: Dexcom Developer API (OAuth), Naver/Kakao Search
+- **Infra**: Docker, Fly.io
 
 ```
 t1d-mcp/
 ├── src/
-│   ├── server.py        # Streamable HTTP Server Entrypoint
-│   ├── main.py          # FastMCP Tool Definitions
-│   ├── cgm/             # Dexcom (Legacy & OAuth), Nightscout
-│   ├── treatment/       # Sick Day Logic, Insulin Calc
-│   ├── community/       # Hybrid Search
-│   └── nutrition/       # Food DB
-└── tests/               # 단위 테스트 (100% Coverage)
+│   ├── server.py          # Streamable HTTP Server Entrypoint
+│   ├── main.py            # FastMCP Tool Definitions
+│   ├── tools/
+│   │   └── dexcom_tools.py  # Dexcom OAuth Tools (조건부 로드)
+│   ├── cgm/               # Dexcom Official API Client
+│   ├── treatment/         # Sick Day Logic, Insulin Calc
+│   └── community/         # Hybrid Search
+└── tests/                 # 단위 테스트
 ```
 
-## ✅ 검증 및 테스트 결과
+---
 
 ## 🚀 시작하기
 
@@ -85,38 +122,45 @@ uv run uvicorn src.server:app --host 0.0.0.0 --port 8080
 
 ### 2. MCP Inspector로 테스트
 ```bash
-npx @modelcontextprotocol/inspector --transport http --server-url http://127.0.0.1:8080/mcp
+# Lite 버전 (OAuth 없음)
+npx @modelcontextprotocol/inspector --transport http --server-url https://t1d-mcp-lite.fly.dev/mcp
+
+# Full 버전 (Dexcom 포함)
+npx @modelcontextprotocol/inspector --transport http --server-url https://t1d-mcp.fly.dev/mcp
 ```
 
 ---
 
-## ✅ 검증 및 테스트 결과
+## 🔧 환경 설정
 
-### 1. 전송 방식 (Transport)
-- **방식**: Streamable HTTP (MCP 가이드라인 준수)
-- **구현**: `FastMCP.streamable_http_app()` 사용
+### Lite 버전 (기본)
+Dexcom 도구 없이 핵심 3개 도구만 활성화됩니다.
 
-### 2. 주요 도구 테스트 (`pytest`)
-- `fetch_dexcom_glucose_state`: Dexcom 실시간 혈당 및 추세(Trend) JSON 반환 검증 완료
-- `analyze_sick_day_guidelines`: Sick Day 가이드라인 분석 및 JSON 출력 검증 완료
-- `calculate_insulin`: 탄수화물/혈당 기반 계산 로직 검증 완료
-- **테스트 결과**: 총 16개 테스트 케이스 **ALL PASS** ✅
+```bash
+# fly.lite.toml
+ENABLE_DEXCOM = "false"
+```
 
-### 3. Dexcom 인증 (Security)
-- **레거시**: Share ID/PW 방식 지원 (보안 경고 포함)
-- **권장**: OAuth 2.0 Auth Code Flow 구현 완료 (`get_dexcom_auth_url`, `get_cgm_with_token`)
+### Full 버전
+Dexcom OAuth 도구까지 모두 활성화됩니다.
+
+```bash
+# fly.toml (기본값)
+ENABLE_DEXCOM = "true"  # 또는 미설정
+```
 
 ---
 
 ## 📅 To-Do / Roadmap
 
 ### 완료됨
-- [x] SSE → Streamable HTTP 마이그레이션 (`src/server.py`)
+- [x] SSE → Streamable HTTP 마이그레이션
 - [x] Sick Day 가이드라인 도구 개선 (JSON 구조화, 의학적 근거 보강)
-- [x] Fly.io 배포 완료 (`https://t1d-mcp.fly.dev/mcp`)
+- [x] Fly.io 배포 완료
 - [x] Dexcom Developer Portal 앱 등록 (Sandbox)
 - [x] Legacy ID/PW 도구 제거 (심사 기준 준수)
 - [x] 도구 최적화 (9개 → 6개)
+- [x] Lite/Full 버전 분리 (환경변수 기반)
 
 ### 예정
 - [ ] Dexcom Production 환경 테스트
@@ -130,7 +174,5 @@ npx @modelcontextprotocol/inspector --transport http --server-url http://127.0.0
 > 인슐린 용량 계산이나 Sick Day 관리는 환자의 개별 상황에 따라 달라질 수 있습니다.
 
 ### 📚 관련 문서
-- [DEPLOYMENT.md](./DEPLOYMENT.md): **Fly.io 배포 가이드** (Vercel 대비 장점, 무료 한도, 배포 절차)
+- [DEPLOYMENT.md](./DEPLOYMENT.md): Fly.io 배포 가이드
 - [GUIDELINE.md](./GUIDELINE.md): MCP 서버 생성 가이드 및 심사 정책
-
-
