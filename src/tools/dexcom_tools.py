@@ -160,3 +160,87 @@ def register_dexcom_tools(mcp):
             return f"❌ API 오류: {e.response.status_code} - {e.response.text}"
         except Exception as e:
             return f"❌ 오류 발생: {str(e)}"
+
+
+    @mcp.tool()
+    async def get_cgm_data(
+        hours: int = 24,
+        sandbox: bool = True
+    ) -> str:
+        """
+        Get CGM data using OAuth token from HTTP header (PlayMCP integration).
+        
+        This tool automatically retrieves the Dexcom access token from the
+        Authorization header, which is passed by PlayMCP after OAuth authentication.
+        
+        Use this when:
+        - User asks "혈당 보여줘" or "what's my glucose?"
+        - User wants to check recent CGM readings
+        
+        Args:
+            hours: Number of hours of data to retrieve (default: 24, max: 720 for 30 days)
+            sandbox: Whether to use sandbox environment (default: True)
+            
+        Returns:
+            Formatted CGM data or auth instructions if token not found
+        """
+        from datetime import datetime, timedelta
+        from fastmcp.server.dependencies import get_http_headers
+        
+        # Get access token from HTTP headers (passed by PlayMCP)
+        headers = get_http_headers()
+        auth_header = headers.get("authorization", "")
+        
+        if not auth_header:
+            return """
+### ⚠️ Dexcom 인증 필요
+
+OAuth 토큰이 없습니다. PlayMCP에서 Dexcom 인증을 먼저 완료해주세요.
+
+**인증 방법:**
+1. PlayMCP에서 이 MCP의 OAuth 인증 시작
+2. Dexcom Sandbox에서 테스트 사용자 선택 (예: G7 Mobile App User7)
+3. 인증 완료 후 다시 시도
+
+> 인증이 완료되면 자동으로 토큰이 전달됩니다.
+"""
+        
+        # Extract Bearer token
+        if auth_header.startswith("Bearer "):
+            access_token = auth_header[7:]  # Remove "Bearer " prefix
+        else:
+            access_token = auth_header
+        
+        try:
+            base_url = (
+                "https://sandbox-api.dexcom.com" if sandbox 
+                else "https://api.dexcom.com"
+            )
+            
+            end_date = datetime.utcnow()
+            start_date = end_date - timedelta(hours=min(hours, 720))
+            
+            async with httpx.AsyncClient() as http_client:
+                response = await http_client.get(
+                    f"{base_url}/v3/users/self/egvs",
+                    params={
+                        "startDate": start_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                        "endDate": end_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                    },
+                    headers={"Authorization": f"Bearer {access_token}"}
+                )
+                response.raise_for_status()
+                egvs_data = response.json()
+            
+            result = format_egvs_for_display(egvs_data, limit=10)
+            env_label = "Sandbox" if sandbox else "Production"
+            result += f"\n\n> ✅ Dexcom Developer API ({env_label})에서 조회 완료"
+            
+            return result
+            
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                return "❌ 인증 실패: 토큰이 만료되었거나 유효하지 않습니다. PlayMCP에서 다시 인증해주세요."
+            return f"❌ API 오류: {e.response.status_code} - {e.response.text}"
+        except Exception as e:
+            return f"❌ 오류 발생: {str(e)}"
